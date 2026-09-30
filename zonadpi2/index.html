@@ -1,0 +1,1510 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZonaWifi — Daftar Penagihan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg: #F4F6FB;
+    --surface: #FFFFFF;
+    --surface-2: #EEF1F8;
+    --ink: #101728;
+    --ink-soft: #5B6479;
+    --line: #E1E5F0;
+    --brand: #2F6FED;
+    --brand-ink: #1B4FC4;
+    --brand-soft: #E8EFFE;
+    --ok: #17A366;
+    --ok-soft: #E6F7EF;
+    --wait: #E7A008;
+    --wait-soft: #FDF3DC;
+    --late: #DB4C3F;
+    --late-soft: #FBE6E3;
+    --isolir: #6B5CE0;
+    --isolir-soft: #ECE9FB;
+    --collecting: #0E8FA8;
+    --collecting-soft: #DFF3F6;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(16,23,40,.04), 0 8px 24px -12px rgba(16,23,40,.12);
+    font-size: 16px;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height:100vh;
+    padding: 20px;
+  }
+  h1,h2,h3{ font-family:'Space Grotesk', sans-serif; margin:0; }
+  .mono{ font-family:'JetBrains Mono', monospace; }
+  #app{ max-width:900px; margin:0 auto; }
+
+  /* ---------- Topbar ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; flex-wrap:wrap;
+    background: var(--surface);
+    border:1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    box-shadow: var(--shadow);
+    margin-bottom:16px;
+  }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand-mark{
+    width:42px; height:42px; border-radius:11px;
+    background: linear-gradient(155deg, var(--brand), #6FA1FF);
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .brand-mark svg{ width:22px; height:22px; }
+  .brand h1{ font-size:1.15rem; letter-spacing:-0.01em; }
+  .brand p{ margin:2px 0 0; font-size:.8rem; color:var(--ink-soft); }
+
+  .month-nav{ display:flex; align-items:center; gap:10px; }
+  .month-nav button{
+    width:34px; height:34px; border-radius:9px; border:1px solid var(--line);
+    background:var(--surface-2); color:var(--ink); font-size:1rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition: background .15s ease;
+  }
+  .month-nav button:hover{ background:#E2E7F5; }
+  .month-label{ font-weight:600; min-width:150px; text-align:center; font-size:.98rem; }
+  #todayBtn{
+    width:auto; padding:0 12px; font-size:.8rem; font-weight:600;
+    background:var(--brand-soft); color:var(--brand-ink); border:1px solid transparent;
+  }
+  #todayBtn:hover{ background:#DBE7FF; }
+
+  .sender-config{ display:flex; flex-direction:column; gap:4px; }
+  .sender-config label{ font-size:.72rem; color:var(--ink-soft); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  .sender-config input{
+    border:1px solid var(--line); border-radius:9px; padding:7px 10px;
+    font-family:'JetBrains Mono', monospace; font-size:.85rem; width:170px;
+    background:var(--surface-2); color:var(--ink);
+  }
+  .sender-config input:focus{ outline:2px solid var(--brand); outline-offset:1px; background:var(--surface); }
+
+  /* ---------- Stats ---------- */
+  .stats{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(128px,1fr)); gap:12px; margin-bottom:16px;
+  }
+  .stat-card{
+    background:var(--surface); border:1px solid var(--line); border-radius: var(--radius);
+    padding:14px 16px; box-shadow: var(--shadow);
+  }
+  .stat-card .label{ font-size:.74rem; color:var(--ink-soft); font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
+  .stat-card .value{ font-family:'Space Grotesk',sans-serif; font-size:1.5rem; font-weight:700; margin-top:4px; }
+  .stat-card .sub{ font-size:.76rem; color:var(--ink-soft); margin-top:2px; }
+  .stat-card.ok .value{ color:var(--ok); }
+  .stat-card.wait .value{ color:var(--wait); }
+  .stat-card.late .value{ color:var(--late); }
+  .stat-card.isolir .value{ color:var(--isolir); }
+  .stat-card.collecting .value{ color:var(--collecting); }
+
+  /* ---------- List toolbar ---------- */
+  .list-toolbar{
+    display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;
+  }
+  .list-toolbar input{
+    flex:1; min-width:160px; border:1px solid var(--line); border-radius:10px;
+    padding:10px 12px; font-size:.88rem; background:var(--surface); color:var(--ink);
+  }
+  .list-toolbar input:focus{ outline:2px solid var(--brand); outline-offset:1px; }
+  #addEntryBtn{
+    padding:10px 16px; border-radius:10px; border:none;
+    background:var(--brand); color:#fff; font-weight:700; cursor:pointer; font-size:.86rem;
+    white-space:nowrap;
+  }
+  #addEntryBtn:hover{ background:var(--brand-ink); }
+
+  .toolbar-btn{
+    padding:10px 14px; border-radius:10px; border:1px solid var(--line);
+    background:var(--surface-2); color:var(--ink); font-weight:700; cursor:pointer; font-size:.86rem;
+    white-space:nowrap;
+  }
+  .toolbar-btn:hover{ background:#E2E7F5; }
+
+  /* ---------- Import modal ---------- */
+  .modal.import-modal{ max-width:920px; }
+  .import-summary{ font-size:.84rem; color:var(--ink-soft); margin-bottom:12px; line-height:1.5; }
+  .import-table-wrap{
+    overflow:auto; max-height:52vh; border:1px solid var(--line); border-radius:10px; margin-bottom:14px;
+  }
+  table.import-table{ width:100%; border-collapse:collapse; font-size:.78rem; }
+  table.import-table th, table.import-table td{
+    padding:7px 9px; border-bottom:1px solid var(--line); white-space:nowrap; text-align:left;
+  }
+  table.import-table thead th{
+    position:sticky; top:0; background:var(--surface-2); font-size:.68rem; text-transform:uppercase;
+    letter-spacing:.03em; color:var(--ink-soft);
+  }
+  table.import-table tr.import-row-error{ background:var(--late-soft); }
+  table.import-table td[contenteditable]{ cursor:text; min-width:70px; }
+  table.import-table td[contenteditable]:focus{ outline:2px solid var(--brand); outline-offset:-2px; background:var(--surface); }
+  table.import-table td.import-cell-error{ box-shadow: inset 0 0 0 1.5px var(--late); }
+
+  /* ---------- Customer list ---------- */
+  #customerList{ display:flex; flex-direction:column; gap:10px; }
+  .cust-card{
+    background:var(--surface); border:1px solid var(--line); border-radius: var(--radius);
+    padding:14px 16px; box-shadow: var(--shadow);
+  }
+  .cust-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:8px; }
+  .cust-who{ display:flex; align-items:center; gap:9px; min-width:0; }
+  .cust-name{ font-weight:700; font-size:.98rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cust-id{ font-size:.72rem; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; }
+  .cust-addr{
+    font-size:.8rem; color:var(--ink-soft); margin:0 0 12px; line-height:1.4;
+    display:flex; gap:6px; align-items:flex-start;
+  }
+  .cust-addr svg{ flex-shrink:0; margin-top:2px; }
+  .cust-info{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:10px;
+    background:var(--surface-2); border-radius:10px; padding:10px 12px; margin-bottom:12px;
+  }
+  .cust-info .item .k{ font-size:.66rem; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em; }
+  .cust-info .item .v{ font-size:.82rem; font-weight:600; margin-top:2px; }
+  .cust-info .item.tunggakan .v{ color:var(--late); }
+  .cust-actions{ display:flex; gap:8px; }
+  .cust-actions .btn{ flex:1; }
+
+  .status-pill{ font-size:.68rem; font-weight:700; padding:4px 9px; border-radius:999px; white-space:nowrap; flex-shrink:0; }
+  .status-pill.st-LUNAS{ background:var(--ok-soft); color:var(--ok); }
+  .status-pill.st-BELUM_BAYAR{ background:var(--wait-soft); color:#946000; }
+  .status-pill.st-TERLAMBAT{ background:var(--late-soft); color:var(--late); }
+  .status-pill.st-ISOLIR{ background:var(--isolir-soft); color:var(--isolir); }
+  .status-pill.st-SEDANG_DITAGIH{ background:var(--collecting-soft); color:var(--collecting); }
+  .status-pill.st-PELANGGAN_BARU{ background:var(--brand-soft); color:var(--brand-ink); }
+
+  .empty-note{
+    font-size:.86rem; color:var(--ink-soft); text-align:center; padding:40px 20px;
+    background:var(--surface); border:1px dashed var(--line); border-radius:var(--radius);
+  }
+
+  /* Signal-bar signature element */
+  .signal{ display:inline-flex; align-items:flex-end; gap:1.5px; height:11px; flex-shrink:0; }
+  .signal i{ width:3px; border-radius:1px; background:currentColor; opacity:.35; display:block; }
+  .signal i:nth-child(1){ height:4px; }
+  .signal i:nth-child(2){ height:7.5px; }
+  .signal i:nth-child(3){ height:11px; }
+  .signal.bars-3 i{ opacity:1; }
+  .signal.bars-2 i:nth-child(-n+2){ opacity:1; }
+  .signal.bars-1 i:nth-child(1){ opacity:1; }
+  .signal.bars-1 i:nth-child(1){ animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+
+  /* ---------- Modal ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(16,23,40,.45);
+    display:flex; align-items:center; justify-content:center; padding:20px; z-index:50;
+  }
+  .modal-overlay.hidden{ display:none; }
+  .modal{
+    background:var(--surface); border-radius:16px; width:100%; max-width:480px;
+    max-height:88vh; overflow-y:auto; box-shadow: 0 24px 60px -12px rgba(16,23,40,.35);
+  }
+  .modal-header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 20px; border-bottom:1px solid var(--line); position:sticky; top:0;
+    background:var(--surface); z-index:2;
+  }
+  .modal-header h2{ font-size:1.05rem; }
+  #closeModal{
+    width:30px; height:30px; border-radius:8px; border:none; background:var(--surface-2);
+    cursor:pointer; font-size:.95rem; color:var(--ink-soft);
+  }
+  #closeModal:hover{ background:var(--line); }
+  .modal-body{ padding:16px 20px 20px; }
+
+  .recurring-note{
+    display:flex; align-items:flex-start; gap:8px; background:var(--brand-soft); color:var(--brand-ink);
+    border-radius:10px; padding:9px 11px; font-size:.76rem; line-height:1.4; margin-bottom:14px;
+  }
+  .recurring-note svg{ flex-shrink:0; margin-top:1px; }
+
+  form#entryForm{ display:flex; flex-direction:column; gap:12px; }
+  .field{ display:flex; flex-direction:column; gap:5px; }
+  .field label{ font-size:.76rem; font-weight:600; color:var(--ink-soft); }
+  .field input, .field select{
+    border:1px solid var(--line); border-radius:9px; padding:9px 10px;
+    font-size:.88rem; font-family:'Inter',sans-serif; background:var(--surface-2); color:var(--ink);
+  }
+  .field input:focus, .field select:focus{ outline:2px solid var(--brand); outline-offset:1px; background:var(--surface); }
+  .field input[readonly]{ background:#E7EAF3; color:var(--ink-soft); cursor:not-allowed; }
+  .field .hint{ font-size:.68rem; color:var(--ink-soft); }
+  .field .live-preview{ font-size:.72rem; color:var(--brand-ink); margin-top:2px; }
+  .field-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  .form-actions{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .btn{
+    border:none; border-radius:9px; padding:10px 14px; font-weight:700; font-size:.85rem;
+    cursor:pointer; font-family:'Inter',sans-serif;
+  }
+  .btn-primary{ background:var(--brand); color:#fff; }
+  .btn-primary:hover{ background:var(--brand-ink); }
+  .btn-ghost{ background:var(--surface-2); color:var(--ink); }
+  .btn-ghost:hover{ background:var(--line); }
+  .btn-danger{ background:var(--late-soft); color:var(--late); }
+  .btn-danger:hover{ background:#F6D2CC; }
+  .btn-wa{
+    background:#1FAA5A; color:#fff; display:flex; align-items:center; justify-content:center; gap:7px;
+  }
+  .btn-wa:hover{ background:#188F4B; }
+  .btn.hidden{ display:none; }
+
+  @media (max-width:720px){
+    .stats{ grid-template-columns:repeat(2,1fr); }
+    .field-row{ grid-template-columns:1fr; }
+    .cust-info{ grid-template-columns:1fr 1fr; }
+    .topbar{ flex-direction:column; align-items:stretch; }
+  }
+  :focus-visible{ outline:2px solid var(--brand); outline-offset:2px; }
+  @media (prefers-reduced-motion: reduce){
+    .signal i{ animation:none !important; }
+    *{ transition:none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round">
+          <path d="M4 9a12 12 0 0 1 16 0"/><path d="M7.5 13a7 7 0 0 1 9 0"/><circle cx="12" cy="18" r="1.4" fill="#fff" stroke="none"/>
+        </svg>
+      </div>
+      <div>
+        <h1>ZonaWifi</h1>
+        <p>Daftar Penagihan Langganan</p>
+      </div>
+    </div>
+    <div class="month-nav">
+      <button id="prevMonth" aria-label="Bulan sebelumnya">‹</button>
+      <div class="month-label" id="monthLabel"></div>
+      <button id="nextMonth" aria-label="Bulan berikutnya">›</button>
+      <button id="todayBtn">Bulan ini</button>
+    </div>
+    <div class="sender-config">
+      <label for="senderNumber">Nomor Pengirim</label>
+      <input id="senderNumber" class="mono" value="082285652030">
+    </div>
+  </header>
+
+  <section class="stats" id="statsRow"></section>
+
+  <div class="list-toolbar">
+    <input type="text" id="searchInput" placeholder="Cari nama atau alamat pelanggan...">
+    <button id="downloadTemplateBtn" type="button" class="toolbar-btn">⬇ Template Excel</button>
+    <button id="importExcelBtn" type="button" class="toolbar-btn">📥 Import Excel</button>
+    <button id="exportExcelBtn" type="button" class="toolbar-btn">📤 Export Excel</button>
+    <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none">
+    <button id="addEntryBtn">+ Tambah Pelanggan</button>
+  </div>
+
+  <div id="customerList"></div>
+  <div id="emptyNote" class="empty-note hidden">Belum ada pelanggan pada bulan ini.</div>
+</div>
+
+<div id="modalOverlay" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">Tambah Pelanggan</h2>
+      <button id="closeModal" aria-label="Tutup">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="entryForm">
+        <div class="field-row">
+          <div class="field">
+            <label for="f_nama">Nama Pelanggan</label>
+            <input id="f_nama" placeholder="Masukan Nama" required>
+          </div>
+          <div class="field">
+            <label for="f_regDate">Tanggal Pendaftaran</label>
+            <input type="date" id="f_regDate" required>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="f_idPelanggan">ID Pelanggan <span class="hint">(otomatis)</span></label>
+          <input id="f_idPelanggan" class="mono" readonly placeholder="Isi nama & tanggal pendaftaran">
+        </div>
+
+        <div class="field">
+          <label for="f_noWA">Nomor WhatsApp Tujuan</label>
+          <input id="f_noWA" class="mono" placeholder="0812xxxxxxx" required>
+        </div>
+
+        <div class="field">
+          <label for="f_alamat">Alamat</label>
+          <input id="f_alamat" placeholder="Alamat pelanggan">
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="f_invoice">No. Invoice <span class="hint">(otomatis)</span></label>
+            <input id="f_invoice" class="mono" readonly placeholder="Dibuat saat disimpan">
+          </div>
+          <div class="field">
+            <label for="f_status">Status Tagihan</label>
+            <select id="f_status">
+              <option value="BELUM_BAYAR">BELUM BAYAR</option>
+              <option value="LUNAS">LUNAS</option>
+              <option value="TERLAMBAT">TERLAMBAT</option>
+              <option value="SEDANG_DITAGIH">SEDANG DITAGIH</option>
+              <option value="PELANGGAN_BARU">PELANGGAN BARU</option>
+              <option value="ISOLIR">ISOLIR</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="f_periode">Periode Layanan <span class="hint">(otomatis)</span></label>
+            <input id="f_periode" readonly>
+          </div>
+          <div class="field">
+            <label for="f_billingDay">Tanggal Bayar Setiap Bulan <span class="hint">(bisa diubah)</span></label>
+            <input type="number" id="f_billingDay" min="1" max="31" placeholder="1-31">
+            <div class="live-preview" id="jatuhTempoPreview"></div>
+          </div>
+        </div>
+
+        <div class="recurring-note">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
+          <span id="recurringNoteText">Tagihan pelanggan ini otomatis berulang tiap bulan di tanggal yang sama — tidak perlu input ulang.</span>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="f_email">Email Pelanggan</label>
+            <input type="email" id="f_email" placeholder="email@contoh.com">
+          </div>
+          <div class="field">
+            <label for="f_password">Password Email</label>
+            <input type="text" id="f_password" placeholder="Password email">
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="f_biayaPasang">Biaya Pasang</label>
+            <input type="number" id="f_biayaPasang" min="0" placeholder="0">
+          </div>
+          <div class="field">
+            <label for="f_tagihanManual">Tagihan Manual</label>
+            <input type="number" id="f_tagihanManual" min="0" placeholder="0">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="f_paket">Nama Paket</label>
+          <select id="f_paket">
+            <option value="" disabled selected>Pilih paket</option>
+            <optgroup label="Paket Rumahan">
+              <option value="lite">lite — Rp 110.000</option>
+              <option value="Mini">lite2 — Rp 120.000</option>
+              <option value="Bronze">Bronze — Rp 150.000</option>
+              <option value="Silver">Silver — Rp 200.000</option>
+              <option value="Gold">Gold — Rp 250.000</option>
+            </optgroup>
+            <optgroup label="Paket Eceran">
+              <option value="Voucher">Voucher — Rp 60.000</option>
+              <option value="Voucher">Voucher — Rp 70.000</option>
+              <option value="Only Voucher">Only Voucher — (mode access point)</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="f_tunggakanBulan">Hitung Tunggakan <span class="hint">(berapa bulan ke belakang, kosongkan = semua riwayat)</span></label>
+            <input type="number" id="f_tunggakanBulan" min="1" placeholder="mis. 1 bulan">
+          </div>
+          <div class="field">
+            <label for="f_tunggakan">Tunggakan Bulan Lalu <span class="hint">(otomatis)</span></label>
+            <input id="f_tunggakan" class="mono" readonly placeholder="Rp 0">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="f_total">Total Tagihan <span class="hint">(paket bulan ini + tunggakan, otomatis)</span></label>
+          <input id="f_total" class="mono" readonly placeholder="Rp 0">
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="saveBtn">Simpan</button>
+          <button type="button" class="btn btn-ghost" id="cancelForm">Batal</button>
+          <button type="button" class="btn btn-danger hidden" id="deleteEntry">Hapus Pelanggan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="importModalOverlay" class="modal-overlay hidden">
+  <div class="modal import-modal">
+    <div class="modal-header">
+      <h2>Import Data Pelanggan dari Excel</h2>
+      <button id="closeImportModal" aria-label="Tutup">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="importSummary" class="import-summary"></div>
+      <div class="import-table-wrap">
+        <table class="import-table" id="importTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary" id="confirmImportBtn">Import Data Valid</button>
+        <button type="button" class="btn btn-ghost" id="cancelImportBtn">Batal</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'zonawifi_billing_v3';
+  const LEGACY_KEY = 'zonawifi_billing_v2';
+  const MONTH_NAMES = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const STATUS_LABEL = { LUNAS:'LUNAS', BELUM_BAYAR:'BELUM BAYAR', TERLAMBAT:'TERLAMBAT', ISOLIR:'ISOLIR', SEDANG_DITAGIH:'SEDANG DITAGIH', PELANGGAN_BARU:'PELANGGAN BARU' };
+  const PACKAGES = {
+    Brone:150000, Brone:170000, Silver:200000, Gold:250000, Platinum:300000, Diamond:350000, Office:500000,
+    Voucher:70000, Mini:140000, Force:150000, 'Only Voucher':0
+  };
+
+  // ---- Data model ----
+  // data.customers[id] = {
+  //   id, nama, alamat, regDate, idPelanggan, noWA, paket, billingDay (1-31),
+  //       email, password, biayaPasang, tagihanManual,
+  //   periods: { "YYYY-MM": { status, invoice, tglBayar } }
+  // }
+  let data = loadData();
+  let viewYear, viewMonth; // 0-indexed month
+  let editingCustomerId = null;
+  let searchQuery = '';
+
+  const today = new Date();
+  viewYear = today.getFullYear();
+  viewMonth = today.getMonth();
+
+  function loadData(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw){
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.customers) return parsed;
+      }
+    }catch(e){}
+    // Migrate legacy (v2) date-keyed single-occurrence data into recurring customers.
+    try{
+      const legacyRaw = localStorage.getItem(LEGACY_KEY);
+      if (legacyRaw){
+        const legacy = JSON.parse(legacyRaw);
+        const migrated = { customers:{} };
+        Object.keys(legacy||{}).forEach(dateKey=>{
+          const [y,m,d] = dateKey.split('-').map(Number);
+          (legacy[dateKey]||[]).forEach(entry=>{
+            const id = uid();
+            const monthIdx = MONTH_NAMES.indexOf(entry.periodeMonth);
+            const periodKey = `${entry.periodeYear||y}-${pad((monthIdx>=0?monthIdx:m-1)+1)}`;
+            migrated.customers[id] = {
+              id,
+              nama: entry.nama||'',
+              alamat:'',
+              regDate: entry.regDate||'',
+              idPelanggan: entry.idPelanggan||'',
+              noWA: entry.noWA||'',
+              paket: entry.paket||'',
+              billingDay: d,
+              periods: {
+                [periodKey]: {
+                  status: entry.status||'BELUM_BAYAR',
+                  invoice: entry.invoice||null,
+                  tglBayar: null
+                }
+              }
+            };
+          });
+        });
+        return migrated;
+      }
+    }catch(e){}
+    return { customers:{} };
+  }
+  function saveData(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+    catch(e){ console.error('Gagal menyimpan data', e); }
+  }
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function periodKeyOf(y,m){ return `${y}-${pad(m+1)}`; }
+  function uid(){ return 'c' + Math.random().toString(36).slice(2,9); }
+  function formatRupiah(n){ return 'Rp ' + Number(n||0).toLocaleString('id-ID'); }
+  function formatIndoDate(y,m,d){ return `${d} ${MONTH_NAMES[m]} ${y}`; }
+  function formatIndoDateTimeNow(){
+    const n = new Date();
+    return `${formatIndoDate(n.getFullYear(), n.getMonth(), n.getDate())}, ${pad(n.getHours())}:${pad(n.getMinutes())}`;
+  }
+  function daysInMonth(y,m){ return new Date(y,m+1,0).getDate(); }
+  function clampDay(y,m,day){ return Math.min(day||1, daysInMonth(y,m)); }
+
+  function isRegisteredByPeriod(customer, y, m){
+    if (!customer.regDate) return true;
+    const [ry,rm] = customer.regDate.split('-').map(Number);
+    if (!ry || !rm) return true;
+    return (y*12+m) >= (ry*12+(rm-1));
+  }
+
+  function customersForMonth(y, m){
+    return Object.values(data.customers)
+      .filter(c=> isRegisteredByPeriod(c, y, m))
+      .sort((a,b)=>{
+        const da = clampDay(y,m,a.billingDay), db = clampDay(y,m,b.billingDay);
+        if (da !== db) return da - db;
+        return a.nama.localeCompare(b.nama);
+      });
+  }
+
+  function getPeriod(customer, y, m){
+    const key = periodKeyOf(y,m);
+    return customer.periods[key] || null;
+  }
+  function getStatus(customer, y, m){
+    const p = getPeriod(customer, y, m);
+    return p ? p.status : 'BELUM_BAYAR';
+  }
+
+  // Sum of unpaid billing periods for a customer, from their registration month
+  // up to (but not including) the given (y,m) period. Uses each period's saved
+  // price snapshot when available, falling back to the customer's current paket price.
+  // limit = jumlah bulan ke belakang yang dihitung (tidak termasuk bulan berjalan).
+  // Jika limit kosong/0/undefined, hitung dari seluruh riwayat sejak tanggal daftar (perilaku lama).
+  function computeTunggakanCore(customer, y, m, limit){
+    if (!customer.regDate) return 0;
+    const [ry,rm] = customer.regDate.split('-').map(Number);
+    if (!ry || !rm) return 0;
+    const targetIdx = y*12+m;
+    const regIdx = ry*12+(rm-1);
+    const startIdx = (limit && limit > 0) ? Math.max(regIdx, targetIdx - limit) : regIdx;
+    let total = 0;
+    let idx = startIdx;
+    while (idx < targetIdx){
+      const cy = Math.floor(idx/12), cm = idx%12;
+      const key = periodKeyOf(cy,cm);
+      const p = customer.periods[key];
+      const status = p ? p.status : 'BELUM_BAYAR';
+      if (status !== 'LUNAS'){
+        const price = (p && p.price) ? p.price : (PACKAGES[customer.paket]||0);
+        total += price;
+      }
+      idx++;
+    }
+    return total;
+  }
+
+  function computeTunggakan(customer, y, m){
+    return computeTunggakanCore(customer, y, m, customer.tunggakanLimit);
+  }
+
+  const monthLabel = document.getElementById('monthLabel');
+  const statsRow = document.getElementById('statsRow');
+  const customerListEl = document.getElementById('customerList');
+  const emptyNote = document.getElementById('emptyNote');
+  const searchInput = document.getElementById('searchInput');
+  const modalOverlay = document.getElementById('modalOverlay');
+  const modalTitle = document.getElementById('modalTitle');
+  const addEntryBtn = document.getElementById('addEntryBtn');
+  const entryForm = document.getElementById('entryForm');
+  const deleteEntryBtn = document.getElementById('deleteEntry');
+  const senderNumberInput = document.getElementById('senderNumber');
+
+  const f_nama = document.getElementById('f_nama');
+  const f_regDate = document.getElementById('f_regDate');
+  const f_idPelanggan = document.getElementById('f_idPelanggan');
+  const f_noWA = document.getElementById('f_noWA');
+  const f_alamat = document.getElementById('f_alamat');
+  const f_email = document.getElementById('f_email');
+  const f_password = document.getElementById('f_password');
+  const f_biayaPasang = document.getElementById('f_biayaPasang');
+  const f_tagihanManual = document.getElementById('f_tagihanManual');
+  const f_invoice = document.getElementById('f_invoice');
+  const f_status = document.getElementById('f_status');
+  const f_periode = document.getElementById('f_periode');
+  const f_billingDay = document.getElementById('f_billingDay');
+  const jatuhTempoPreview = document.getElementById('jatuhTempoPreview');
+  const recurringNoteText = document.getElementById('recurringNoteText');
+  const f_paket = document.getElementById('f_paket');
+  const f_tunggakanBulan = document.getElementById('f_tunggakanBulan');
+  const f_tunggakan = document.getElementById('f_tunggakan');
+  const f_total = document.getElementById('f_total');
+
+  function renderStats(){
+    const list = customersForMonth(viewYear, viewMonth);
+    const total = list.length;
+    const lunas = list.filter(c=>getStatus(c,viewYear,viewMonth)==='LUNAS').length;
+    const belum = list.filter(c=>getStatus(c,viewYear,viewMonth)==='BELUM_BAYAR').length;
+    const telat = list.filter(c=>getStatus(c,viewYear,viewMonth)==='TERLAMBAT').length;
+    const ditagih = list.filter(c=>getStatus(c,viewYear,viewMonth)==='SEDANG_DITAGIH').length;
+    const isolir = list.filter(c=>getStatus(c,viewYear,viewMonth)==='ISOLIR').length;
+
+    statsRow.innerHTML = `
+      <div class="stat-card">
+        <div class="label">Total Pelanggan</div>
+        <div class="value">${total}</div>
+        <div class="sub">Bulan ${MONTH_NAMES[viewMonth]}</div>
+      </div>
+      <div class="stat-card ok">
+        <div class="label">Lunas</div>
+        <div class="value">${lunas}</div>
+        <div class="sub">Sinyal penuh</div>
+      </div>
+      <div class="stat-card wait">
+        <div class="label">Belum Bayar</div>
+        <div class="value">${belum}</div>
+        <div class="sub">Menunggu pembayaran</div>
+      </div>
+      <div class="stat-card late">
+        <div class="label">Terlambat</div>
+        <div class="value">${telat}</div>
+        <div class="sub">Perlu tindak lanjut</div>
+      </div>
+      <div class="stat-card collecting">
+        <div class="label">Sedang Ditagih</div>
+        <div class="value">${ditagih}</div>
+        <div class="sub">Dalam proses penagihan</div>
+      </div>
+      <div class="stat-card isolir">
+        <div class="label">Isolir</div>
+        <div class="value">${isolir}</div>
+        <div class="sub">Layanan diputus</div>
+      </div>
+    `;
+  }
+
+  function signalHTML(status){
+    const cls = status === 'LUNAS' ? 'bars-3' : (status === 'BELUM_BAYAR' || status === 'SEDANG_DITAGIH') ? 'bars-2' : status === 'ISOLIR' ? '' : 'bars-1';
+    return `<span class="signal ${cls}" aria-hidden="true"><i></i><i></i><i></i></span>`;
+  }
+
+  function escapeHTML(str){
+    const d = document.createElement('div');
+    d.textContent = str ?? '';
+    return d.innerHTML;
+  }
+
+  function renderCustomerList(){
+    monthLabel.textContent = `${MONTH_NAMES[viewMonth]} ${viewYear}`;
+    let list = customersForMonth(viewYear, viewMonth);
+    const q = searchQuery.trim().toLowerCase();
+    if (q){
+      list = list.filter(c=>
+        (c.nama||'').toLowerCase().includes(q) ||
+        (c.alamat||'').toLowerCase().includes(q)
+      );
+    }
+
+    customerListEl.innerHTML = '';
+    if (list.length === 0){
+      emptyNote.classList.remove('hidden');
+      emptyNote.textContent = q ? 'Tidak ada pelanggan yang cocok dengan pencarian.' : 'Belum ada pelanggan pada bulan ini.';
+      return;
+    }
+    emptyNote.classList.add('hidden');
+
+    list.forEach(c=>{
+      const status = getStatus(c, viewYear, viewMonth);
+      const tglBayar = formatIndoDate(viewYear, viewMonth, clampDay(viewYear, viewMonth, c.billingDay));
+      const tglDaftar = c.regDate ? (()=>{ const [ry,rm,rd]=c.regDate.split('-').map(Number); return formatIndoDate(ry, rm-1, rd); })() : '-';
+      const tunggakan = computeTunggakan(c, viewYear, viewMonth);
+
+      const card = document.createElement('div');
+      card.className = 'cust-card';
+      card.innerHTML = `
+        <div class="cust-top">
+          <div class="cust-who">
+            ${signalHTML(status)}
+            <div>
+              <div class="cust-name">${escapeHTML(c.nama)}</div>
+              <div class="cust-id">${escapeHTML(c.idPelanggan)}</div>
+            </div>
+          </div>
+          <span class="status-pill st-${status}">${STATUS_LABEL[status]}</span>
+        </div>
+        <p class="cust-addr">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span>${escapeHTML(c.alamat || 'Alamat belum diisi')}</span>
+        </p>
+        <div class="cust-info">
+          <div class="item"><div class="k">Paket</div><div class="v">${escapeHTML(c.paket||'-')}</div></div>
+          <div class="item"><div class="k">Tgl Daftar</div><div class="v">${tglDaftar}</div></div>
+          <div class="item"><div class="k">Tgl Bayar</div><div class="v">${tglBayar}</div></div>
+          <div class="item tunggakan"><div class="k">Tunggakan</div><div class="v">${tunggakan>0 ? formatRupiah(tunggakan) : '—'}</div></div>
+        </div>
+        <div class="cust-actions">
+          <button type="button" class="btn btn-ghost" data-act="edit">Edit</button>
+          <button type="button" class="btn btn-wa" data-act="wa">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="#fff"><path d="M17.5 14.4c-.3-.1-1.6-.8-1.9-.9-.2-.1-.4-.1-.6.1-.2.3-.7.9-.8 1-.1.2-.3.2-.6.1-.3-.2-1.2-.5-2.3-1.5-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.1.2-.3.1-.5-.1-.2-.6-1.5-.8-2-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.3.3-1 1-1 2.4s1 2.8 1.1 3c.1.2 2 3 4.7 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.6-.7 1.9-1.3.2-.6.2-1.1.2-1.2-.1-.2-.3-.2-.5-.3z"/><path d="M12 2a10 10 0 0 0-8.5 15.2L2 22l4.9-1.5A10 10 0 1 0 12 2zm0 18.2c-1.7 0-3.3-.5-4.7-1.3l-.3-.2-3 .9.9-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2z"/></svg>
+            Kirim WhatsApp
+          </button>
+        </div>
+      `;
+      card.querySelector('[data-act="edit"]').addEventListener('click', ()=> openEntryForm(c.id));
+      card.querySelector('[data-act="wa"]').addEventListener('click', ()=> sendWhatsApp(c.id));
+      customerListEl.appendChild(card);
+    });
+  }
+
+  function updateIdPreview(){
+    const regVal = f_regDate.value;
+    const namaVal = f_nama.value.trim();
+    if (regVal && namaVal){
+      const [yy,mm,dd] = regVal.split('-');
+      const letter = namaVal.charAt(0).toUpperCase();
+      f_idPelanggan.value = `${dd}${mm}${yy.slice(2)}${letter}`;
+    } else {
+      f_idPelanggan.value = '';
+    }
+  }
+
+  function updateTotalPreview(){
+    const price = PACKAGES[f_paket.value] || 0;
+    const customer = editingCustomerId ? data.customers[editingCustomerId] : null;
+    const limitVal = parseInt(f_tunggakanBulan.value, 10);
+    const limit = (limitVal > 0) ? limitVal : undefined;
+    const tunggakan = customer ? computeTunggakanCore(customer, viewYear, viewMonth, limit) : 0;
+    f_tunggakan.value = formatRupiah(tunggakan);
+    f_total.value = f_paket.value ? formatRupiah(price + tunggakan) : (tunggakan>0 ? formatRupiah(tunggakan) : '');
+  }
+
+  function updateJatuhTempoPreview(){
+    const day = parseInt(f_billingDay.value, 10);
+    if (day >= 1 && day <= 31){
+      jatuhTempoPreview.textContent = `Jatuh tempo bulan ini: ${formatIndoDate(viewYear, viewMonth, clampDay(viewYear, viewMonth, day))}`;
+    } else {
+      jatuhTempoPreview.textContent = '';
+    }
+  }
+
+  function generateInvoice(){
+    const now = new Date();
+    const hh = pad(now.getHours());
+    const rand = Math.floor(100 + Math.random()*900);
+    return `INVZW${hh}${rand}`;
+  }
+
+  function openEntryForm(customerId){
+    const periodKey = periodKeyOf(viewYear, viewMonth);
+    f_periode.value = `${MONTH_NAMES[viewMonth]} ${viewYear}`;
+
+    if (customerId){
+      editingCustomerId = customerId;
+      const c = data.customers[customerId];
+      const p = c.periods[periodKey];
+      modalTitle.textContent = `Edit: ${c.nama}`;
+      f_nama.value = c.nama;
+      f_regDate.value = c.regDate || '';
+      f_idPelanggan.value = c.idPelanggan;
+      f_noWA.value = c.noWA;
+      f_alamat.value = c.alamat || '';
+      f_email.value = c.email || '';
+      f_password.value = c.password || '';
+      f_biayaPasang.value = c.biayaPasang ?? '';
+      f_tagihanManual.value = c.tagihanManual ?? '';
+      f_invoice.value = p ? (p.invoice||'') : '';
+      f_status.value = p ? p.status : 'BELUM_BAYAR';
+      f_billingDay.value = c.billingDay;
+      f_billingDay.readOnly = false;
+      f_paket.value = c.paket;
+      f_tunggakanBulan.value = c.tunggakanLimit || '';
+      updateTotalPreview();
+      updateJatuhTempoPreview();
+      recurringNoteText.textContent = 'Ubah "Tanggal Bayar Setiap Bulan" jika jadwal tagihan pelanggan ini berganti — perubahan berlaku mulai bulan ini dan berulang otomatis di tanggal baru pada bulan-bulan berikutnya.';
+      deleteEntryBtn.classList.remove('hidden');
+    } else {
+      editingCustomerId = null;
+      entryForm.reset();
+      modalTitle.textContent = 'Tambah Pelanggan';
+      f_status.value = 'BELUM_BAYAR';
+      f_periode.value = `${MONTH_NAMES[viewMonth]} ${viewYear}`;
+      f_billingDay.readOnly = false;
+      f_billingDay.value = today.getDate();
+      f_idPelanggan.value = '';
+      f_email.value = '';
+      f_password.value = '';
+      f_biayaPasang.value = '';
+      f_tagihanManual.value = '';
+      f_invoice.value = '';
+      f_total.value = '';
+      f_tunggakan.value = 'Rp 0';
+      f_tunggakanBulan.value = '';
+      f_alamat.value = '';
+      updateJatuhTempoPreview();
+      recurringNoteText.textContent = 'Tagihan pelanggan ini otomatis berulang tiap bulan di tanggal yang sama — tidak perlu input ulang.';
+      deleteEntryBtn.classList.add('hidden');
+    }
+    modalOverlay.classList.remove('hidden');
+  }
+
+  function closeModal(){
+    modalOverlay.classList.add('hidden');
+  }
+
+  f_regDate.addEventListener('input', updateIdPreview);
+  f_nama.addEventListener('input', updateIdPreview);
+  f_paket.addEventListener('change', updateTotalPreview);
+  f_tunggakanBulan.addEventListener('input', updateTotalPreview);
+  f_billingDay.addEventListener('input', updateJatuhTempoPreview);
+
+  addEntryBtn.addEventListener('click', ()=> openEntryForm(null));
+  document.getElementById('cancelForm').addEventListener('click', closeModal);
+  document.getElementById('closeModal').addEventListener('click', closeModal);
+  modalOverlay.addEventListener('click', (ev)=>{ if (ev.target === modalOverlay) closeModal(); });
+
+  entryForm.addEventListener('submit', (ev)=>{
+    ev.preventDefault();
+    if (!f_paket.value){
+      alert('Pilih nama paket terlebih dahulu.');
+      return;
+    }
+    const day = parseInt(f_billingDay.value, 10);
+    if (!(day >= 1 && day <= 31)){
+      alert('Isi tanggal bayar (1-31) terlebih dahulu.');
+      return;
+    }
+    updateIdPreview();
+    updateTotalPreview();
+
+    const periodKey = periodKeyOf(viewYear, viewMonth);
+    const tunggakanLimitVal = parseInt(f_tunggakanBulan.value, 10);
+    const tunggakanLimit = (tunggakanLimitVal > 0) ? tunggakanLimitVal : null;
+    let customer;
+    if (editingCustomerId && data.customers[editingCustomerId]){
+      customer = data.customers[editingCustomerId];
+      customer.nama = f_nama.value.trim();
+      customer.regDate = f_regDate.value;
+      customer.idPelanggan = f_idPelanggan.value;
+      customer.noWA = f_noWA.value.trim();
+      customer.alamat = f_alamat.value.trim();
+      customer.email = f_email.value.trim();
+      customer.password = f_password.value;
+      customer.biayaPasang = Number(f_biayaPasang.value) || 0;
+      customer.tagihanManual = Number(f_tagihanManual.value) || 0;
+      customer.paket = f_paket.value;
+      customer.billingDay = day;
+      customer.tunggakanLimit = tunggakanLimit;
+    } else {
+      customer = {
+        id: uid(),
+        nama: f_nama.value.trim(),
+        regDate: f_regDate.value,
+        idPelanggan: f_idPelanggan.value,
+        noWA: f_noWA.value.trim(),
+        alamat: f_alamat.value.trim(),
+        email: f_email.value.trim(),
+        password: f_password.value,
+        biayaPasang: Number(f_biayaPasang.value) || 0,
+        tagihanManual: Number(f_tagihanManual.value) || 0,
+        paket: f_paket.value,
+        billingDay: day,
+        tunggakanLimit: tunggakanLimit,
+        periods: {}
+      };
+      data.customers[customer.id] = customer;
+      editingCustomerId = customer.id;
+    }
+
+    const existingPeriod = customer.periods[periodKey];
+    const newStatus = f_status.value;
+    const tglBayar = newStatus === 'LUNAS'
+      ? (existingPeriod && existingPeriod.tglBayar ? existingPeriod.tglBayar : formatIndoDateTimeNow())
+      : (existingPeriod ? existingPeriod.tglBayar : null);
+    const priceNow = PACKAGES[f_paket.value] || 0;
+
+    // Paying "Total Tagihan" (harga bulan ini + tunggakan) settles prior unpaid
+    // months too, so mark them LUNAS as well to avoid double-counting arrears later.
+    if (newStatus === 'LUNAS' && customer.regDate){
+      const [ry,rm] = customer.regDate.split('-').map(Number);
+      if (ry && rm){
+        let cy = ry, cm = rm-1;
+        const targetIdx = viewYear*12+viewMonth;
+        while (cy*12+cm < targetIdx){
+          const k = periodKeyOf(cy,cm);
+          const existing = customer.periods[k];
+          if (!existing || existing.status !== 'LUNAS'){
+            customer.periods[k] = {
+              status: 'LUNAS',
+              invoice: (existing && existing.invoice) ? existing.invoice : generateInvoice(),
+              tglBayar: tglBayar,
+              price: (existing && existing.price) ? existing.price : priceNow
+            };
+          }
+          cm++; if (cm>11){ cm=0; cy++; }
+        }
+      }
+    }
+
+    customer.periods[periodKey] = {
+      status: newStatus,
+      invoice: (existingPeriod && existingPeriod.invoice) ? existingPeriod.invoice : generateInvoice(),
+      tglBayar: tglBayar,
+      price: priceNow
+    };
+
+    saveData();
+    renderCustomerList();
+    renderStats();
+    closeModal();
+  });
+
+  deleteEntryBtn.addEventListener('click', ()=>{
+    if (!editingCustomerId) return;
+    if (!confirm('Hapus pelanggan ini beserta seluruh riwayat penagihan berulangnya? Tindakan ini tidak bisa dibatalkan.')) return;
+    delete data.customers[editingCustomerId];
+    saveData();
+    editingCustomerId = null;
+    closeModal();
+    renderCustomerList();
+    renderStats();
+  });
+
+  function normalizePhone(raw){
+    let digits = (raw||'').replace(/\D/g,'');
+    if (digits.startsWith('0')) digits = '62' + digits.slice(1);
+    else if (digits.startsWith('8')) digits = '62' + digits;
+    return digits;
+  }
+
+  function buildMessageLunas(c, p, periodLabel, jatuhTempo, total){
+    return `Terimakasih telah melakukan pembayaran
+----------------------------------------
+INVOICE         : ${p.invoice || '-'}
+STATUS          : Lunas
+----------------------------------------
+INFORMASI PELANGGAN
+Nama           : ${c.nama}
+Telp             : ${c.noWA}
+Alamat        : ${c.alamat || '-'}
+Paket           : ${c.paket}
+Periode       : ${periodLabel}
+----------------------------------------
+INFORMASI TAGIHAN
+Jatuh Tempo     : ${jatuhTempo}
+Tgl Bayar       : ${p.tglBayar || formatIndoDateTimeNow()}
+----------------------------------------
+TOTAL TAGIHAN   : ${total}
+----------------------------------------
+
+Terima kasih atas kepercayaan Anda
+menggunakan layanan kami
+
+Hormat Kami
+ZonaWifi.`;
+  }
+
+  function buildMessagePelangganBaru(c, periodLabel){
+    const registrationDate = c.regDate ? (()=>{
+      const [y,m,d] = c.regDate.split('-').map(Number);
+      return formatIndoDate(y, m-1, d);
+    })() : '-';
+    const monthlyPrice = PACKAGES[c.paket] || 0;
+    const biayaPasang = Number(c.biayaPasang) || 0;
+    const tagihanManual = Number(c.tagihanManual) || 0;
+    const total = biayaPasang + tagihanManual || monthlyPrice;
+    const jatuhTempo = c.billingDay ? `tanggal ${c.billingDay} setiap bulan` : '-';
+
+    return `Selamat datang di ZonaWifi!
+Terima kasih telah melakukan pendaftaran layanan internet bersama kami.
+
+Berikut adalah detail pendaftaran Anda:
+
+🗓 Tanggal Pendaftaran: ${registrationDate}
+👤 Nama: ${c.nama}
+💳 Jenis Tagihan: ${STATUS_LABEL.PELANGGAN_BARU}
+📦 Paket: ${c.paket || '-'}
+💰 Tarif Bulanan: ${formatRupiah(monthlyPrice)}
+📆 Jatuh Tempo Setiap Bulan: ${jatuhTempo}
+----------------------------------------
+💰 Biaya Pasang: ${formatRupiah(biayaPasang)}
+💰 Tarif Bulanan: Rp0
+💰 Tagihan: ${formatRupiah(tagihanManual)}
+Jatuh Tempo: ${jatuhTempo}
+Lakukan pembayaran sebelum jatuh tempo untuk menghindari pemutusan layanan.
+----------------------------------------
+💵 *Total yang harus dibayar: ${formatRupiah(total)}*
+📧 Email: ${c.email || '-'}
+🔐 Password: ${c.password || '-'}
+📱 Aplikasi Pelanggan: https://play.google.com/store/apps/details?id=com.billingradius.client
+
+Silakan login ke aplikasi untuk mengelola layanan Anda.
+
+Terima kasih telah bergabung bersama kami.
+ZonaWifi`;
+  }
+
+  function buildMessageIsolir(c, periodLabel, total){
+    return `Halo Yth Bpak/Ibu ${c.nama} 👋
+
+Kami ingin menginformasikan bahwa layanan internet Anda sudah tidak aktif, Jika Terjadi Modem Error / Kabel Putus artinya sudah di luar tanggung jawab kami, Karena ada tagihan yang belum dibayar.
+
+Name: ${c.nama}
+Paket: ISOLIR
+Periode: ${periodLabel}
+Tagihan: ${total}
+
+Silakan lakukan pembayaran untuk mengaktifkan kembali internet Anda:
+
+Jika sudah terbayar silahkan hubungi kami untuk pengaktifan kembali:
+📞 082285652030
+
+Terima kasih,
+ZonaWifi`;
+  }
+
+  function buildMessageGeneric(c, p, periodLabel, jatuhTempo, hargaBulanIniStr, tunggakanStr, totalStr){
+    const tunggakanLine = tunggakanStr ? `Tunggakan Bulan Lalu: ${tunggakanStr}\n` : '';
+    return `Kepada Yth. Sdr/i ${c.nama}
+di Tempat
+
+Dengan hormat,
+
+Berikut kami sampaikan rincian pembayaran layanan internet Anda:
+
+📄 INFORMASI TAGIHAN
+No. Invoice: ${p.invoice || '-'}
+Status: ${STATUS_LABEL[p.status]}
+Periode Layanan: ${periodLabel}
+Jatuh Tempo: ${jatuhTempo}
+
+👤 INFORMASI PELANGGAN
+ID Pelanggan: ${c.idPelanggan}
+Nama: ${c.nama}
+Paket: ${c.paket}
+
+💰 RINCIAN BIAYA
+Harga Layanan: ${hargaBulanIniStr}
+${tunggakanLine}Total Tagihan: ${totalStr}
+
+Mohon lakukan pembayaran sebelum tanggal jatuh tempo setiap bulannya untuk menghindari terjadinya isolir layanan dan gangguan akses internet.
+
+Pembayaran dapat dilakukan melalui rekening berikut:
+
+Rekening Pembayaran:
+1. BCA 863 5152 164 (Riski Rahmath syah)
+2. DANA 0822 8565 2030 (Riski Rahmath syah)
+3. Seabank 9010 3179 5807 (Riski Rahmath syah)
+4. BRK 1023 111 669 (Syarifah triza nurmi)
+5. BRI 0175 0103 7245 537 (Rahmat Rainaldi)
+
+Hormat kami,
+ZonaWifi`;
+  }
+
+  function buildMessage(c, periodKey){
+    const [py, pm] = periodKey.split('-').map(Number);
+    const periodLabel = `${MONTH_NAMES[pm-1]} ${py}`;
+    const jatuhTempo = formatIndoDate(py, pm-1, clampDay(py, pm-1, c.billingDay));
+    const p = c.periods[periodKey] || { status:'BELUM_BAYAR', invoice:null, tglBayar:null };
+    const hargaBulanIni = (p && p.price) ? p.price : (PACKAGES[c.paket]||0);
+    const tunggakan = computeTunggakan(c, py, pm-1);
+    const totalGabungan = hargaBulanIni + tunggakan;
+    const total = formatRupiah(totalGabungan);
+
+    if (p.status === 'LUNAS') return buildMessageLunas(c, p, periodLabel, jatuhTempo, total);
+    if (p.status === 'PELANGGAN_BARU') return buildMessagePelangganBaru(c, periodLabel);
+    if (p.status === 'ISOLIR') return buildMessageIsolir(c, periodLabel, total);
+    return buildMessageGeneric(c, p, periodLabel, jatuhTempo, formatRupiah(hargaBulanIni), tunggakan>0 ? formatRupiah(tunggakan) : null, total);
+  }
+
+  function sendWhatsApp(customerId){
+    const c = data.customers[customerId];
+    if (!c) return;
+    if (!c.noWA){
+      alert('Nomor WhatsApp tujuan belum diisi.');
+      return;
+    }
+    const periodKey = periodKeyOf(viewYear, viewMonth);
+    const phone = normalizePhone(c.noWA);
+    const text = encodeURIComponent(buildMessage(c, periodKey));
+    const url = `https://api.whatsapp.com/send?phone=${phone}&text=${text}`;
+    window.open(url, '_blank');
+  }
+
+  document.getElementById('prevMonth').addEventListener('click', ()=>{
+    viewMonth--; if (viewMonth<0){ viewMonth=11; viewYear--; }
+    renderCustomerList(); renderStats();
+  });
+  document.getElementById('nextMonth').addEventListener('click', ()=>{
+    viewMonth++; if (viewMonth>11){ viewMonth=0; viewYear++; }
+    renderCustomerList(); renderStats();
+  });
+  document.getElementById('todayBtn').addEventListener('click', ()=>{
+    viewYear = today.getFullYear(); viewMonth = today.getMonth();
+    renderCustomerList(); renderStats();
+  });
+
+  searchInput.addEventListener('input', ()=>{
+    searchQuery = searchInput.value;
+    renderCustomerList();
+  });
+
+  senderNumberInput.addEventListener('change', ()=>{
+    try{ localStorage.setItem('zonawifi_sender', senderNumberInput.value); }catch(e){}
+  });
+  (function initSender(){
+    try{
+      const saved = localStorage.getItem('zonawifi_sender');
+      if (saved) senderNumberInput.value = saved;
+    }catch(e){}
+  })();
+
+  // ================= IMPORT EXCEL =================
+  const importExcelBtn = document.getElementById('importExcelBtn');
+  const exportExcelBtn = document.getElementById('exportExcelBtn');
+  const downloadTemplateBtn = document.getElementById('downloadTemplateBtn');
+  const importFileInput = document.getElementById('importFileInput');
+  const importModalOverlay = document.getElementById('importModalOverlay');
+  const importSummary = document.getElementById('importSummary');
+  const importTable = document.getElementById('importTable');
+  const confirmImportBtn = document.getElementById('confirmImportBtn');
+  const cancelImportBtn = document.getElementById('cancelImportBtn');
+  const closeImportModalBtn = document.getElementById('closeImportModal');
+
+  const VALID_STATUSES = ['BELUM_BAYAR','LUNAS','TERLAMBAT','SEDANG_DITAGIH','PELANGGAN_BARU','ISOLIR'];
+  const PACKAGE_KEYS = Object.keys(PACKAGES);
+  let importRows = [];
+
+  const HEADER_ALIASES = {
+    nama: ['nama','nama pelanggan','name'],
+    noWA: ['no wa','nowa','nomor whatsapp','whatsapp','no whatsapp','telp','telepon','no hp','nomor hp'],
+    alamat: ['alamat','address'],
+    paket: ['paket','nama paket','package'],
+    regDate: ['tanggal daftar','tgl daftar','tanggal pendaftaran','regdate','tgl pendaftaran'],
+    billingDay: ['tanggal bayar','tgl bayar','billing day','tanggal tagihan','hari bayar','tgl tagihan'],
+    status: ['status','status tagihan']
+  };
+
+  function normalizeHeader(h){
+    return String(h||'').trim().toLowerCase().replace(/\s+/g,' ');
+  }
+
+  function mapHeaders(headerRow){
+    const map = {};
+    headerRow.forEach((raw, idx)=>{
+      const h = normalizeHeader(raw);
+      Object.keys(HEADER_ALIASES).forEach(field=>{
+        if (map[field] !== undefined) return;
+        if (HEADER_ALIASES[field].includes(h)) map[field] = idx;
+      });
+    });
+    return map;
+  }
+
+  function excelSerialToISODate(serial){
+    const utcMs = Math.round((serial - 25569) * 86400 * 1000);
+    const d = new Date(utcMs);
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
+  }
+
+  function parseDateFlexible(val){
+    if (val === null || val === undefined || val === '') return '';
+    if (typeof val === 'number') return excelSerialToISODate(val);
+    const s = String(val).trim();
+    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (m) return `${m[1]}-${pad(+m[2])}-${pad(+m[3])}`;
+    m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (m) return `${m[3]}-${pad(+m[2])}-${pad(+m[1])}`; // asumsi DD/MM/YYYY
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    return '';
+  }
+
+  function matchPackage(val){
+    const s = String(val||'').trim().toLowerCase();
+    const found = PACKAGE_KEYS.find(k=> k.toLowerCase() === s);
+    return found || '';
+  }
+
+  function matchStatus(val){
+    const s = String(val||'').trim().toUpperCase().replace(/\s+/g,'_');
+    return VALID_STATUSES.includes(s) ? s : 'BELUM_BAYAR';
+  }
+
+  function buildIdPelanggan(nama, regDate){
+    if (!regDate || !nama) return '';
+    const [yy,mm,dd] = regDate.split('-');
+    const letter = nama.trim().charAt(0).toUpperCase();
+    return `${dd}${mm}${yy.slice(2)}${letter}`;
+  }
+
+  function validateRow(row){
+    const errors = {};
+    if (!row.nama) errors.nama = 'Nama wajib diisi';
+    const phoneDigits = String(row.noWA||'').replace(/\D/g,'');
+    if (!phoneDigits || phoneDigits.length < 8) errors.noWA = 'Nomor WA tidak valid';
+    if (!row.paketMatched) errors.paket = `Paket tidak dikenali (pilihan: ${PACKAGE_KEYS.join(', ')})`;
+    if (!row.regDate) errors.regDate = 'Tanggal daftar tidak valid';
+    const day = parseInt(row.billingDay, 10);
+    if (!(day >= 1 && day <= 31)) errors.billingDay = 'Tgl bayar harus angka 1-31';
+    return errors;
+  }
+
+  function parseWorkbook(wb){
+    const sheetName = wb.SheetNames[0];
+    const sheet = wb.Sheets[sheetName];
+    const raw = XLSX.utils.sheet_to_json(sheet, { header:1, defval:'' });
+    if (!raw.length) return [];
+    const headerMap = mapHeaders(raw[0]);
+    const rows = [];
+    for (let i=1; i<raw.length; i++){
+      const r = raw[i];
+      if (!r || r.every(c=> String(c).trim()==='')) continue;
+      const get = (field)=> headerMap[field] !== undefined ? r[headerMap[field]] : '';
+      const nama = String(get('nama')||'').trim();
+      const noWA = String(get('noWA')||'').trim();
+      const alamat = String(get('alamat')||'').trim();
+      const paketRaw = get('paket');
+      const paketMatched = matchPackage(paketRaw);
+      const regDate = parseDateFlexible(get('regDate'));
+      let billingDayRaw = get('billingDay');
+      const billingDay = billingDayRaw === '' ? (regDate ? parseInt(regDate.split('-')[2],10) : '') : parseInt(billingDayRaw,10);
+      const status = matchStatus(get('status'));
+      const row = {
+        _rowNum: i+1,
+        nama, noWA, alamat,
+        paket: paketMatched || String(paketRaw||'').trim(),
+        paketMatched,
+        regDate, billingDay, status
+      };
+      row.errors = validateRow(row);
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  function renderImportTable(){
+    const cols = [
+      {key:'nama', label:'Nama'},
+      {key:'noWA', label:'No WA'},
+      {key:'alamat', label:'Alamat'},
+      {key:'paket', label:'Paket'},
+      {key:'regDate', label:'Tgl Daftar'},
+      {key:'billingDay', label:'Tgl Bayar'},
+      {key:'status', label:'Status'}
+    ];
+    const thead = importTable.querySelector('thead');
+    const tbody = importTable.querySelector('tbody');
+    thead.innerHTML = `<tr><th>#</th>${cols.map(c=>`<th>${c.label}</th>`).join('')}<th>Keterangan</th></tr>`;
+    tbody.innerHTML = '';
+    importRows.forEach((row, idx)=>{
+      const errCount = Object.keys(row.errors).length;
+      const tr = document.createElement('tr');
+      if (errCount) tr.className = 'import-row-error';
+      let cells = `<td>${row._rowNum}</td>`;
+      cols.forEach(c=>{
+        const hasErr = row.errors[c.key];
+        cells += `<td contenteditable="true" data-idx="${idx}" data-field="${c.key}" class="${hasErr ? 'import-cell-error' : ''}">${escapeHTML(String(row[c.key] ?? ''))}</td>`;
+      });
+      const errMsgs = Object.values(row.errors).join('; ');
+      cells += `<td>${errCount ? ('⚠ ' + escapeHTML(errMsgs)) : '✅ Siap diimport'}</td>`;
+      tr.innerHTML = cells;
+      tbody.appendChild(tr);
+    });
+    updateImportSummary();
+  }
+
+  function updateImportSummary(){
+    const total = importRows.length;
+    const validCount = importRows.filter(r=> Object.keys(r.errors).length===0).length;
+    importSummary.innerHTML = `<strong>${total}</strong> baris terbaca — <strong style="color:var(--ok)">${validCount} valid</strong>, <strong style="color:var(--late)">${total-validCount} bermasalah</strong>. Klik langsung pada sel yang bermasalah untuk memperbaikinya sebelum import.`;
+    confirmImportBtn.textContent = `Import ${validCount} Data Valid`;
+    confirmImportBtn.disabled = validCount === 0;
+  }
+
+  importTable.addEventListener('blur', (ev)=>{
+    const td = ev.target.closest('td[contenteditable]');
+    if (!td) return;
+    const idx = +td.dataset.idx, field = td.dataset.field;
+    const val = td.textContent.trim();
+    const row = importRows[idx];
+    if (!row) return;
+    if (field === 'paket'){
+      row.paket = val;
+      row.paketMatched = matchPackage(val);
+    } else if (field === 'billingDay'){
+      row.billingDay = parseInt(val,10);
+    } else if (field === 'regDate'){
+      row.regDate = parseDateFlexible(val) || val;
+    } else if (field === 'status'){
+      row.status = matchStatus(val);
+    } else {
+      row[field] = val;
+    }
+    row.errors = validateRow(row);
+    renderImportTable();
+  }, true);
+
+  importExcelBtn.addEventListener('click', ()=> importFileInput.click());
+
+  importFileInput.addEventListener('change', (ev)=>{
+    const file = ev.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      try{
+        const wb = XLSX.read(e.target.result, { type:'array' });
+        importRows = parseWorkbook(wb);
+        if (!importRows.length){
+          alert('Tidak ada data yang terbaca dari file ini. Pastikan formatnya sesuai template.');
+          return;
+        }
+        renderImportTable();
+        importModalOverlay.classList.remove('hidden');
+      }catch(err){
+        alert('Gagal membaca file: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    importFileInput.value = '';
+  });
+
+  function closeImportModalFn(){
+    importModalOverlay.classList.add('hidden');
+    importRows = [];
+  }
+  cancelImportBtn.addEventListener('click', closeImportModalFn);
+  closeImportModalBtn.addEventListener('click', closeImportModalFn);
+  importModalOverlay.addEventListener('click', (ev)=>{ if (ev.target === importModalOverlay) closeImportModalFn(); });
+
+  confirmImportBtn.addEventListener('click', ()=>{
+    const validRows = importRows.filter(r=> Object.keys(r.errors).length===0);
+    if (!validRows.length) return;
+    let created = 0, updated = 0;
+    const periodKey = periodKeyOf(viewYear, viewMonth);
+
+    validRows.forEach(row=>{
+      const phoneNorm = normalizePhone(row.noWA);
+      const existing = phoneNorm ? Object.values(data.customers).find(c=> normalizePhone(c.noWA) === phoneNorm) : null;
+      const idPelanggan = buildIdPelanggan(row.nama, row.regDate);
+      const price = PACKAGES[row.paketMatched] || 0;
+
+      if (existing){
+        existing.nama = row.nama;
+        existing.regDate = row.regDate;
+        existing.idPelanggan = idPelanggan;
+        existing.noWA = row.noWA;
+        existing.alamat = row.alamat;
+        existing.paket = row.paketMatched;
+        existing.billingDay = row.billingDay;
+        const existingPeriod = existing.periods[periodKey];
+        existing.periods[periodKey] = {
+          status: row.status,
+          invoice: existingPeriod && existingPeriod.invoice ? existingPeriod.invoice : generateInvoice(),
+          tglBayar: row.status === 'LUNAS' ? (existingPeriod && existingPeriod.tglBayar ? existingPeriod.tglBayar : formatIndoDateTimeNow()) : (existingPeriod ? existingPeriod.tglBayar : null),
+          price
+        };
+        updated++;
+      } else {
+        const c = {
+          id: uid(),
+          nama: row.nama,
+          regDate: row.regDate,
+          idPelanggan,
+          noWA: row.noWA,
+          alamat: row.alamat,
+          paket: row.paketMatched,
+          billingDay: row.billingDay,
+          periods: {
+            [periodKey]: {
+              status: row.status,
+              invoice: generateInvoice(),
+              tglBayar: row.status === 'LUNAS' ? formatIndoDateTimeNow() : null,
+              price
+            }
+          }
+        };
+        data.customers[c.id] = c;
+        created++;
+      }
+    });
+
+    saveData();
+    renderCustomerList();
+    renderStats();
+    closeImportModalFn();
+    alert(`Import selesai: ${created} pelanggan baru ditambahkan, ${updated} pelanggan diperbarui.`);
+  });
+
+  exportExcelBtn.addEventListener('click', ()=>{
+    const customers = customersForMonth(viewYear, viewMonth);
+    const rows = customers.map(c=>{
+      const periodKey = periodKeyOf(viewYear, viewMonth);
+      const period = c.periods[periodKey] || { status:'BELUM_BAYAR', invoice:'', tglBayar:null };
+      const price = period.price || PACKAGES[c.paket] || 0;
+      const tunggakan = computeTunggakan(c, viewYear, viewMonth);
+      return {
+        'Nama Pelanggan': c.nama || '',
+        'ID Pelanggan': c.idPelanggan || '',
+        'No WA': c.noWA || '',
+        'Alamat': c.alamat || '',
+        'Paket': c.paket || '',
+        'Tanggal Daftar': c.regDate || '',
+        'Tanggal Bayar': c.billingDay || '',
+        'Status': STATUS_LABEL[period.status] || period.status || 'BELUM BAYAR',
+        'No Invoice': period.invoice || '',
+        'Tanggal Pelunasan': period.tglBayar || '',
+        'Tarif Bulanan': price,
+        'Tunggakan': tunggakan,
+        'Total Tagihan': price + tunggakan,
+        'Email': c.email || '',
+        'Password Email': c.password || '',
+        'Biaya Pasang': Number(c.biayaPasang) || 0,
+        'Tagihan Manual': Number(c.tagihanManual) || 0
+      };
+    });
+
+    if (!rows.length){
+      alert('Tidak ada data pelanggan untuk diekspor pada bulan ini.');
+      return;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [
+      {wch:20},{wch:15},{wch:15},{wch:28},{wch:14},{wch:14},{wch:12},
+      {wch:18},{wch:18},{wch:22},{wch:16},{wch:16},{wch:18},{wch:28},
+      {wch:20},{wch:16},{wch:16}
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `${MONTH_NAMES[viewMonth]} ${viewYear}`.slice(0,31));
+    XLSX.writeFile(wb, `export_pelanggan_${viewYear}-${pad(viewMonth+1)}.xlsx`);
+  });
+
+  downloadTemplateBtn.addEventListener('click', ()=>{
+    const headers = ['Nama Pelanggan','No WA','Alamat','Paket','Tanggal Daftar','Tanggal Bayar','Status'];
+    const sample = [
+      ['M Nuh','081234567890','Jl. Melati No. 5','Silver','2026-01-15',15,'BELUM_BAYAR'],
+      ['Siti Aminah','082345678901','Jl. Mawar No. 2','Gold','2025-11-01',1,'LUNAS']
+    ];
+    const wsData = [headers, ...sample];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [{wch:20},{wch:15},{wch:25},{wch:12},{wch:14},{wch:12},{wch:14}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    XLSX.writeFile(wb, 'template_import_pelanggan_zonawifi.xlsx');
+  });
+
+  renderCustomerList();
+  renderStats();
+})();
+</script>
+</body>
+</html>
